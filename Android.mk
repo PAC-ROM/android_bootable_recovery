@@ -42,7 +42,7 @@ TARGET_RECOVERY_GUI := true
 
 LOCAL_SRC_FILES := \
     twrp.cpp \
-    fixPermissions.cpp \
+    fixContexts.cpp \
     twrpTar.cpp \
     twrpDU.cpp \
     twrpDigest.cpp \
@@ -99,6 +99,7 @@ LOCAL_C_INCLUDES += \
     system/vold \
     system/extras/ext4_utils \
     system/core/adb \
+    system/core/libsparse
 
 LOCAL_C_INCLUDES += bionic external/openssl/include $(LOCAL_PATH)/libmincrypt/includes
 ifeq ($(shell test $(PLATFORM_SDK_VERSION) -lt 23; echo $$?),0)
@@ -284,7 +285,7 @@ ifeq ($(TW_INCLUDE_L_CRYPTO), true)
 endif
 ifeq ($(TW_INCLUDE_CRYPTO), true)
     LOCAL_CFLAGS += -DTW_INCLUDE_CRYPTO
-    LOCAL_SHARED_LIBRARIES += libcryptfslollipop
+    LOCAL_SHARED_LIBRARIES += libcryptfslollipop libgpt_twrp
     LOCAL_C_INCLUDES += external/boringssl/src/include
 endif
 ifeq ($(TW_USE_MODEL_HARDWARE_ID_FOR_DEVICE_ID), true)
@@ -342,7 +343,6 @@ LOCAL_ADDITIONAL_DEPENDENCIES := \
     dump_image \
     erase_image \
     flash_image \
-    fix_permissions.sh \
     mke2fs.conf \
     pigz \
     teamwin \
@@ -352,7 +352,8 @@ LOCAL_ADDITIONAL_DEPENDENCIES := \
     fsck.fat \
     fatlabel \
     mkfs.fat \
-    permissive.sh
+    permissive.sh \
+    simg2img_twrp
 
 ifneq ($(TARGET_ARCH), arm64)
     ifneq ($(TARGET_ARCH), x86_64)
@@ -423,6 +424,12 @@ ifeq ($(TW_INCLUDE_INJECTTWRP), true)
 endif
 ifneq ($(TW_EXCLUDE_DEFAULT_USB_INIT), true)
     LOCAL_ADDITIONAL_DEPENDENCIES += init.recovery.usb.rc
+endif
+ifeq ($(TARGET_USES_LOGD), true)
+    LOCAL_ADDITIONAL_DEPENDENCIES += logd libsysutils libnl init.recovery.logd.rc
+endif
+ifeq ($(TWRP_INCLUDE_LOGCAT), true)
+    LOCAL_ADDITIONAL_DEPENDENCIES += logcat
 endif
 # Allow devices to specify device-specific recovery dependencies
 ifneq ($(TARGET_RECOVERY_DEVICE_MODULES),)
@@ -587,11 +594,13 @@ include $(commands_recovery_local_path)/injecttwrp/Android.mk \
     $(commands_recovery_local_path)/dosfstools/Android.mk \
     $(commands_recovery_local_path)/etc/Android.mk \
     $(commands_recovery_local_path)/toybox/Android.mk \
+    $(commands_recovery_local_path)/simg2img/Android.mk \
     $(commands_recovery_local_path)/libpixelflinger/Android.mk
 
 ifeq ($(TW_INCLUDE_CRYPTO), true)
     include $(commands_recovery_local_path)/crypto/lollipop/Android.mk
     include $(commands_recovery_local_path)/crypto/scrypt/Android.mk
+    include $(commands_recovery_local_path)/gpt/Android.mk
 endif
 ifeq ($(BUILD_ID), GINGERBREAD)
     TW_NO_EXFAT := true
